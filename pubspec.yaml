@@ -1,0 +1,36 @@
+name: stryk
+description: "StryK — just show up. Automatic gym consistency streaks."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^3.0.3
+  flutter_secure_storage: ^11.2.0
+  go_router: ^16.2.4
+  image_picker: ^1.2.3
+  intl: ^0.20.3
+  path_provider: ^2.1.6
+  qr_flutter: ^4.1.0
+  share_plus: ^13.3.0
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/stryk_logo.png
+    - assets/images/stryk_logo_light.png
+    - assets/images/stryk-logo.png
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
