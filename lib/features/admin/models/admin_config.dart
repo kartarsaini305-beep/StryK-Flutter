@@ -1,7 +1,9 @@
 class AdminConfig {
   const AdminConfig({
     this.minStayMinutes = 20,
-    this.geofenceRadiusMeters = 40,
+    this.checkInRadiusMeters = 40,
+    this.checkOutRadiusMeters = 50,
+    this.outsideDurationMinutes = 5,
     this.gymDetectionEnabled = true,
     this.streakEnabled = true,
     this.maintenanceMode = false,
@@ -11,10 +13,15 @@ class AdminConfig {
     this.cardMinimalEnabled = true,
     this.cardPhotoEnabled = true,
     this.cardAchievementEnabled = true,
+    this.gymNameOverride = '',
+    this.gymLatitude,
+    this.gymLongitude,
   });
 
   final int minStayMinutes;
-  final double geofenceRadiusMeters;
+  final double checkInRadiusMeters;
+  final double checkOutRadiusMeters;
+  final int outsideDurationMinutes;
   final bool gymDetectionEnabled;
   final bool streakEnabled;
   final bool maintenanceMode;
@@ -26,12 +33,22 @@ class AdminConfig {
   final bool cardMinimalEnabled;
   final bool cardPhotoEnabled;
   final bool cardAchievementEnabled;
+  final String gymNameOverride;
+  final double? gymLatitude;
+  final double? gymLongitude;
 
   Duration get minStay => Duration(minutes: minStayMinutes.clamp(5, 180));
+  Duration get outsideDuration =>
+      Duration(minutes: outsideDurationMinutes.clamp(1, 30));
+
+  /// Backward-compatible alias used across the app.
+  double get geofenceRadiusMeters => checkInRadiusMeters;
 
   AdminConfig copyWith({
     int? minStayMinutes,
-    double? geofenceRadiusMeters,
+    double? checkInRadiusMeters,
+    double? checkOutRadiusMeters,
+    int? outsideDurationMinutes,
     bool? gymDetectionEnabled,
     bool? streakEnabled,
     bool? maintenanceMode,
@@ -41,10 +58,17 @@ class AdminConfig {
     bool? cardMinimalEnabled,
     bool? cardPhotoEnabled,
     bool? cardAchievementEnabled,
+    String? gymNameOverride,
+    double? gymLatitude,
+    double? gymLongitude,
+    bool clearGymCoords = false,
   }) {
     return AdminConfig(
       minStayMinutes: minStayMinutes ?? this.minStayMinutes,
-      geofenceRadiusMeters: geofenceRadiusMeters ?? this.geofenceRadiusMeters,
+      checkInRadiusMeters: checkInRadiusMeters ?? this.checkInRadiusMeters,
+      checkOutRadiusMeters: checkOutRadiusMeters ?? this.checkOutRadiusMeters,
+      outsideDurationMinutes:
+          outsideDurationMinutes ?? this.outsideDurationMinutes,
       gymDetectionEnabled: gymDetectionEnabled ?? this.gymDetectionEnabled,
       streakEnabled: streakEnabled ?? this.streakEnabled,
       maintenanceMode: maintenanceMode ?? this.maintenanceMode,
@@ -55,12 +79,19 @@ class AdminConfig {
       cardPhotoEnabled: cardPhotoEnabled ?? this.cardPhotoEnabled,
       cardAchievementEnabled:
           cardAchievementEnabled ?? this.cardAchievementEnabled,
+      gymNameOverride: gymNameOverride ?? this.gymNameOverride,
+      gymLatitude: clearGymCoords ? null : (gymLatitude ?? this.gymLatitude),
+      gymLongitude:
+          clearGymCoords ? null : (gymLongitude ?? this.gymLongitude),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'minStayMinutes': minStayMinutes,
-        'geofenceRadiusMeters': geofenceRadiusMeters,
+        'checkInRadiusMeters': checkInRadiusMeters,
+        'geofenceRadiusMeters': checkInRadiusMeters,
+        'checkOutRadiusMeters': checkOutRadiusMeters,
+        'outsideDurationMinutes': outsideDurationMinutes,
         'gymDetectionEnabled': gymDetectionEnabled,
         'streakEnabled': streakEnabled,
         'maintenanceMode': maintenanceMode,
@@ -70,13 +101,21 @@ class AdminConfig {
         'cardMinimalEnabled': cardMinimalEnabled,
         'cardPhotoEnabled': cardPhotoEnabled,
         'cardAchievementEnabled': cardAchievementEnabled,
+        'gymNameOverride': gymNameOverride,
+        'gymLatitude': gymLatitude,
+        'gymLongitude': gymLongitude,
       };
 
   factory AdminConfig.fromJson(Map<String, dynamic> json) {
+    final checkIn = (json['checkInRadiusMeters'] as num?)?.toDouble() ??
+        (json['geofenceRadiusMeters'] as num?)?.toDouble() ??
+        40;
     return AdminConfig(
       minStayMinutes: json['minStayMinutes'] as int? ?? 20,
-      geofenceRadiusMeters:
-          (json['geofenceRadiusMeters'] as num?)?.toDouble() ?? 40,
+      checkInRadiusMeters: checkIn,
+      checkOutRadiusMeters:
+          (json['checkOutRadiusMeters'] as num?)?.toDouble() ?? 50,
+      outsideDurationMinutes: json['outsideDurationMinutes'] as int? ?? 5,
       gymDetectionEnabled: json['gymDetectionEnabled'] as bool? ?? true,
       streakEnabled: json['streakEnabled'] as bool? ?? true,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
@@ -86,6 +125,9 @@ class AdminConfig {
       cardMinimalEnabled: json['cardMinimalEnabled'] as bool? ?? true,
       cardPhotoEnabled: json['cardPhotoEnabled'] as bool? ?? true,
       cardAchievementEnabled: json['cardAchievementEnabled'] as bool? ?? true,
+      gymNameOverride: json['gymNameOverride'] as String? ?? '',
+      gymLatitude: (json['gymLatitude'] as num?)?.toDouble(),
+      gymLongitude: (json['gymLongitude'] as num?)?.toDouble(),
     );
   }
 }

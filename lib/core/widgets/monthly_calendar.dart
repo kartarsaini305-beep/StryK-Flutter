@@ -90,70 +90,86 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
             ],
           ),
           const SizedBox(height: 6),
-          for (var row = 0; row < rows; row++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: List.generate(7, (col) {
-                  final index = row * 7 + col;
-                  final dayNum = index - leading + 1;
-                  if (dayNum < 1 || dayNum > daysInMonth) {
-                    return const Expanded(child: SizedBox(height: 36));
-                  }
-                  final day = DateTime(_month.year, _month.month, dayNum);
-                  final record = widget.records[Dates.key(day)];
-                  final isFuture = day.isAfter(today);
-                  final isToday = Dates.isSameDay(day, today);
-                  final color = _cellColor(record, isFuture);
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Material(
-                          color: color,
-                          borderRadius: BorderRadius.circular(8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: isFuture ? null : () => widget.onDayTap(day),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: Column(
+              key: ValueKey('${_month.year}-${_month.month}'),
+              children: [
+                for (var row = 0; row < rows; row++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: List.generate(7, (col) {
+                        final index = row * 7 + col;
+                        final dayNum = index - leading + 1;
+                        if (dayNum < 1 || dayNum > daysInMonth) {
+                          return const Expanded(child: SizedBox(height: 36));
+                        }
+                        final day = DateTime(_month.year, _month.month, dayNum);
+                        final record = widget.records[Dates.key(day)];
+                        final isFuture = day.isAfter(today);
+                        final isToday = Dates.isSameDay(day, today);
+                        final color = _cellColor(record, isFuture);
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: Material(
+                                color: color,
                                 borderRadius: BorderRadius.circular(8),
-                                border: isToday
-                                    ? Border.all(color: AppColors.amber, width: 1.4)
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$dayNum',
-                                  style: AppTypography.label.copyWith(
-                                    color: isFuture
-                                        ? AppColors.textMuted.withValues(alpha: 0.4)
-                                        : AppColors.textPrimary,
-                                    fontWeight:
-                                        isToday ? FontWeight.w700 : FontWeight.w500,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap:
+                                      isFuture ? null : () => widget.onDayTap(day),
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: isToday
+                                          ? Border.all(
+                                              color: AppColors.amber,
+                                              width: 1.4,
+                                            )
+                                          : null,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$dayNum',
+                                        style: AppTypography.label.copyWith(
+                                          color: isFuture
+                                              ? AppColors.textMuted
+                                                  .withValues(alpha: 0.4)
+                                              : AppColors.textPrimary,
+                                          fontWeight: isToday
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
-                  );
-                }),
-              ),
+                  ),
+              ],
             ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
-            spacing: 10,
-            runSpacing: 6,
+            spacing: 12,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('Intensity', style: AppTypography.label),
-              _legend(IntensityColors.light, '20–30m'),
-              _legend(IntensityColors.medium, '30–50m'),
-              _legend(IntensityColors.dark, '50m+'),
+              Text('INTENSITY', style: AppTypography.label.copyWith(fontSize: 10)),
+              _legend(IntensityColors.light, 'Light'),
+              _legend(IntensityColors.medium, 'Medium'),
+              _legend(IntensityColors.dark, 'Intense'),
             ],
           ),
         ],
@@ -185,15 +201,16 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 14,
+          height: 14,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.borderSubtle),
           ),
         ),
-        const SizedBox(width: 4),
-        Text(label, style: AppTypography.label),
+        const SizedBox(width: 5),
+        Text(label, style: AppTypography.label.copyWith(fontSize: 11)),
       ],
     );
   }

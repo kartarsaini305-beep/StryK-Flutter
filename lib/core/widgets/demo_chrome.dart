@@ -79,6 +79,7 @@ class StatCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.borderSubtle),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -87,9 +88,20 @@ class StatCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(value, style: AppTypography.heading.copyWith(fontSize: 22)),
+              Text(
+                value,
+                style: AppTypography.metric.copyWith(fontSize: 24),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 4),
-              Text(label, style: AppTypography.label, textAlign: TextAlign.center),
+              Text(
+                label.toUpperCase(),
+                style: AppTypography.label.copyWith(fontSize: 10),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),

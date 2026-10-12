@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/presentation/admin_login_screen.dart';
+import '../../features/admin/presentation/admin_panel_screen.dart';
 import '../../features/auth/presentation/otp_screen.dart';
 import '../../features/auth/presentation/phone_screen.dart';
 import '../../features/gyms/presentation/select_gym_screen.dart';
 import '../../features/onboarding/presentation/name_screen.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/presentation/splash_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
+import '../../features/share/presentation/leaderboard_screen.dart';
+import '../../features/share/presentation/monthly_result_screen.dart';
+import '../../features/profile/presentation/change_phone_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/profile/presentation/legal_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/session/presentation/home_screen.dart';
-import '../../features/admin/presentation/admin_login_screen.dart';
-import '../../features/admin/presentation/admin_panel_screen.dart';
+import '../../features/share/presentation/cards_hub_screen.dart';
 import '../../features/share/presentation/choose_card_screen.dart';
 import '../../features/share/presentation/share_preview_screen.dart';
 import '../../features/share/presentation/verification_screen.dart';
@@ -66,6 +72,7 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
       const public = {
         AppRoutes.splash,
         AppRoutes.welcome,
+        AppRoutes.onboarding,
         AppRoutes.phone,
       };
 
@@ -83,19 +90,28 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
       }
       if (!app.authenticated) {
         if (public.contains(loc) || isOtp || isVerify) return null;
-        return AppRoutes.welcome;
+        return destinationFor(app);
       }
 
-      if (loc == AppRoutes.welcome || loc == AppRoutes.phone) {
+      if (loc == AppRoutes.welcome ||
+          loc == AppRoutes.onboarding ||
+          loc == AppRoutes.phone) {
         return destinationFor(app);
       }
       if (app.hasName && loc == AppRoutes.name) {
         return app.hasGym ? AppRoutes.home : AppRoutes.selectGym;
       }
-      if (!app.hasName && loc != AppRoutes.name && !isOtp && !isVerify) {
+      if (!app.hasName &&
+          loc != AppRoutes.name &&
+          !isOtp &&
+          !isVerify &&
+          !loc.startsWith('/change-phone')) {
         return AppRoutes.name;
       }
-      if (app.hasName && !app.hasGym && loc != AppRoutes.selectGym) {
+      if (app.hasName &&
+          !app.hasGym &&
+          loc != AppRoutes.selectGym &&
+          !loc.startsWith('/change-phone')) {
         return AppRoutes.selectGym;
       }
       return null;
@@ -110,6 +126,21 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
         path: AppRoutes.welcome,
         pageBuilder: (context, state) =>
             _fadePage(state: state, child: const WelcomeScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        pageBuilder: (context, state) =>
+            _fadePage(state: state, child: const OnboardingScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.leaderboard,
+        pageBuilder: (context, state) =>
+            _fadePage(state: state, child: const LeaderboardScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.monthlyResult,
+        pageBuilder: (context, state) =>
+            _fadePage(state: state, child: const MonthlyResultScreen()),
       ),
       GoRoute(
         path: AppRoutes.phone,
@@ -145,6 +176,25 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
         path: AppRoutes.selectGym,
         pageBuilder: (context, state) =>
             _fadePage(state: state, child: const SelectGymScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        pageBuilder: (context, state) =>
+            _fadePage(state: state, child: const EditProfileScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.changePhone,
+        pageBuilder: (context, state) => _fadePage(
+          state: state,
+          child: const ChangePhoneScreen(step: ChangePhoneStep.verifyOld),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.changePhoneNew,
+        pageBuilder: (context, state) => _fadePage(
+          state: state,
+          child: const ChangePhoneScreen(step: ChangePhoneStep.verifyNew),
+        ),
       ),
       GoRoute(
         path: AppRoutes.sharePreview,
@@ -205,7 +255,7 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
           child: const LegalScreen(
             title: 'Terms',
             body:
-                'StryK is a consistency companion. Showing up at your gym for 20 continuous minutes inside the 40m zone secures the day. This demo runs entirely on-device.',
+                'StryK is a consistency companion. Showing up at your gym for the admin-defined minimum stay inside the check-in zone secures the day. This demo runs entirely on-device.',
           ),
         ),
       ),
@@ -226,9 +276,18 @@ GoRouter createAppRouter(Ref ref, Listenable refresh) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.streak,
+                path: AppRoutes.history,
                 pageBuilder: (context, state) =>
                     _fadePage(state: state, child: const StreakScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.cards,
+                pageBuilder: (context, state) =>
+                    _fadePage(state: state, child: const CardsHubScreen()),
               ),
             ],
           ),

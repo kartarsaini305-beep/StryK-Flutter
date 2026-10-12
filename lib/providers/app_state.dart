@@ -1,4 +1,5 @@
 import '../core/utils/dates.dart';
+import '../core/utils/geo.dart';
 import '../core/utils/session_clock.dart';
 import '../features/admin/models/admin_config.dart';
 import '../features/auth/models/user_profile.dart';
@@ -14,9 +15,10 @@ import '../services/mock_location_service.dart';
 
 enum TodayStatus {
   notStarted,
-  gymDetected,
+  readyToCheckIn,
   tracking,
   secured,
+  leavingZone,
   interrupted,
   completed,
 }
@@ -35,6 +37,7 @@ class AppState {
     required this.settings,
     required this.location,
     required this.adminConfig,
+    this.onboardingSeen = false,
   });
 
   final bool ready;
@@ -49,13 +52,57 @@ class AppState {
   final AppSettings settings;
   final LocationSnapshot location;
   final AdminConfig adminConfig;
+  final bool onboardingSeen;
 
   bool get hasName => user?.name.trim().isNotEmpty ?? false;
   bool get hasGym => gym != null;
-  bool get isInside => location.presence == DemoPresence.inside;
 
   Duration get minStay => adminConfig.minStay;
-  double get geofenceRadiusMeters => adminConfig.geofenceRadiusMeters;
+  double get geofenceRadiusMeters => adminConfig.checkInRadiusMeters;
+  double get checkInRadiusMeters => adminConfig.checkInRadiusMeters;
+  double get checkOutRadiusMeters => adminConfig.checkOutRadiusMeters;
+  Duration get outsideDuration => adminConfig.outsideDuration;
+
+  Gym? get effectiveGym {
+    final base = gym;
+    if (base == null) return null;
+    final name = adminConfig.gymNameOverride.trim().isEmpty
+        ? base.name
+        : adminConfig.gymNameOverride.trim();
+    final lat = adminConfig.gymLatitude;
+    final lng = adminConfig.gymLongitude;
+    final point = (lat != null && lng != null) ? GeoPoint(lat, lng) : base.location;
+    if (name == base.name && point == base.location) return base;
+    return Gym(
+      id: base.id,
+      name: name,
+      address: base.address,
+      location: point,
+      placeholderLabel: base.placeholderLabel,
+    );
+  }
+
+  double distanceToGymMeters() {
+    final g = effectiveGym;
+    if (g == null) return double.infinity;
+    return location.point.distanceTo(g.location);
+  }
+
+  bool get isInsideCheckIn {
+    if (location.presence == DemoPresence.inside) return true;
+    return distanceToGymMeters() <= checkInRadiusMeters;
+  }
+
+  /// Checkout zone is measured from stored check-in point when available.
+  bool get isInsideCheckOut {
+    final anchor = session?.checkInPoint ?? effectiveGym?.location;
+    if (anchor == null) return isInsideCheckIn;
+    if (location.presence == DemoPresence.inside) return true;
+    return location.point.distanceTo(anchor) <= checkOutRadiusMeters;
+  }
+
+  /// Legacy helper used by older UI.
+  bool get isInside => isInsideCheckIn;
 
   DailyRecord? todayRecord([DateTime? now]) =>
       records[Dates.key(now ?? DateTime.now())];
@@ -69,30 +116,49 @@ class AppState {
     );
   }
 
+  Duration? outsideCountdown([DateTime? wallNow]) {
+    final leftAt = session?.leftZoneAt;
+    if (leftAt == null || session?.status != SessionStatus.secured) {
+      return null;
+    }
+    final at = sessionNow(wallNow);
+    final elapsedOutside = at.difference(leftAt);
+    final left = outsideDuration - elapsedOutside;
+    return left.isNegative ? Duration.zero : left;
+  }
+
   TodayStatus todayStatus([DateTime? wallNow]) {
     final wall = wallNow ?? DateTime.now();
-    final at = sessionNow(wall);
     final current = session;
 
-    switch (current?.status) {
+    // Previous-day sessions must not drive today's check-in UI.
+    final forToday = current != null && current.belongsToLocalDay(wall);
+
+    if (!forToday) {
+      if (todayRecord(wall)?.isCompleted == true) {
+        return TodayStatus.completed;
+      }
+      if (isInsideCheckIn) return TodayStatus.readyToCheckIn;
+      return TodayStatus.notStarted;
+    }
+
+    switch (current.status) {
       case SessionStatus.completed:
         return TodayStatus.completed;
       case SessionStatus.secured:
+        if (current.leftZoneAt != null && !isInsideCheckOut) {
+          return TodayStatus.leavingZone;
+        }
         return TodayStatus.secured;
       case SessionStatus.interrupted:
         return TodayStatus.interrupted;
       case SessionStatus.tracking:
-        final start = current!.startTime;
-        if (start != null &&
-            at.difference(start) < const Duration(milliseconds: 1400)) {
-          return TodayStatus.gymDetected;
-        }
         return TodayStatus.tracking;
       case SessionStatus.idle:
-      case null:
         if (todayRecord(wall)?.isCompleted == true) {
           return TodayStatus.completed;
         }
+        if (isInsideCheckIn) return TodayStatus.readyToCheckIn;
         return TodayStatus.notStarted;
     }
   }
@@ -132,6 +198,7 @@ class AppState {
     AppSettings? settings,
     LocationSnapshot? location,
     AdminConfig? adminConfig,
+    bool? onboardingSeen,
     bool clearGym = false,
     bool clearSession = false,
     bool clearUser = false,
@@ -149,6 +216,7 @@ class AppState {
       settings: settings ?? this.settings,
       location: location ?? this.location,
       adminConfig: adminConfig ?? this.adminConfig,
+      onboardingSeen: onboardingSeen ?? this.onboardingSeen,
     );
   }
 
@@ -168,12 +236,14 @@ class AppState {
           presence: DemoPresence.outside,
         ),
         adminConfig: const AdminConfig(),
+        onboardingSeen: false,
       );
 
   factory AppState.fromPersisted(
     PersistedApp data, {
     required AdminConfig adminConfig,
     required bool adminAuthenticated,
+    bool onboardingSeen = false,
   }) {
     return AppState(
       ready: true,
@@ -188,6 +258,7 @@ class AppState {
       settings: data.settings,
       location: data.location,
       adminConfig: adminConfig,
+      onboardingSeen: onboardingSeen,
     );
   }
 }

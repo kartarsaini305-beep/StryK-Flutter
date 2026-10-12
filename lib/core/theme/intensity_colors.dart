@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Duration-based activity / timer colors.
+/// High-contrast duration intensity using StryK brand palette.
 abstract final class IntensityColors {
-  static const under10 = Color(0xFF8B1E1E);
-  static const midTransition = Color(0xFFC45C3A);
-  static const light = Color(0xFFB8D4A8);
-  static const medium = Color(0xFF6FAE7B);
-  static const dark = Color(0xFF2F6B45);
+  /// Under 10m — darkest red-side.
+  static const under10 = Color(0xFF5A1414);
 
-  /// Smooth timer meter color from elapsed minutes.
+  /// 10–20m bridge toward amber.
+  static const midTransition = Color(0xFFC47A3A);
+
+  /// 20–30m — clearly light.
+  static const light = Color(0xFFF0E0C0);
+
+  /// 30–50m — clearly medium (brand amber).
+  static const medium = Color(0xFFF5BD6E);
+
+  /// 50+m — clearly darkest green-compatible.
+  static const dark = Color(0xFF1E4D30);
+
   static Color timerColor(Duration elapsed) {
     final m = elapsed.inSeconds / 60.0;
     if (m <= 0) return under10;
@@ -29,8 +37,6 @@ abstract final class IntensityColors {
     return dark;
   }
 
-  /// Calendar cell intensity for a completed session duration.
-  /// Below [minStay] is treated as incomplete / invalid activity.
   static Color calendarIntensity(
     Duration? duration, {
     Duration minStay = const Duration(minutes: 20),

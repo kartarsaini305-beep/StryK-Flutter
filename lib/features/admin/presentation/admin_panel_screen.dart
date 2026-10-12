@@ -4,17 +4,76 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/stryk_text_field.dart';
 import '../../../providers/app_controller.dart';
 import '../../../widgets/stryk_button.dart';
 import '../../../widgets/stryk_card.dart';
 import '../../../widgets/stryk_logo.dart';
+import '../../sponsors/models/sponsor.dart';
+import '../../sponsors/presentation/admin_sponsors_section.dart';
+import '../../share/models/monthly_result.dart';
+import '../../share/services/monthly_leaderboard_service.dart';
+import '../../share/services/monthly_result_repository.dart';
+import '../../sponsors/services/sponsor_repository.dart';
 import '../models/admin_config.dart';
 
-class AdminPanelScreen extends ConsumerWidget {
+class AdminPanelScreen extends ConsumerStatefulWidget {
   const AdminPanelScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminPanelScreen> createState() => _AdminPanelScreenState();
+}
+
+class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
+  late final TextEditingController _gymName;
+  late final TextEditingController _lat;
+  late final TextEditingController _lng;
+
+  @override
+  void initState() {
+    super.initState();
+    final config = ref.read(appControllerProvider).adminConfig;
+    final gym = ref.read(appControllerProvider).effectiveGym;
+    _gymName = TextEditingController(
+      text: config.gymNameOverride.isEmpty
+          ? (gym?.name ?? '')
+          : config.gymNameOverride,
+    );
+    _lat = TextEditingController(
+      text: (config.gymLatitude ?? gym?.location.latitude)?.toString() ?? '',
+    );
+    _lng = TextEditingController(
+      text: (config.gymLongitude ?? gym?.location.longitude)?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _gymName.dispose();
+    _lat.dispose();
+    _lng.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(AdminConfig config) {
+    return ref.read(appControllerProvider.notifier).updateAdminConfig(config);
+  }
+
+  Future<void> _saveGymFields(AdminConfig config) async {
+    final lat = double.tryParse(_lat.text.trim());
+    final lng = double.tryParse(_lng.text.trim());
+    await _save(
+      config.copyWith(
+        gymNameOverride: _gymName.text.trim(),
+        gymLatitude: lat,
+        gymLongitude: lng,
+        clearGymCoords: lat == null || lng == null,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final app = ref.watch(appControllerProvider);
     if (!app.adminAuthenticated) {
       return Scaffold(
@@ -28,7 +87,6 @@ class AdminPanelScreen extends ConsumerWidget {
       );
     }
     final config = app.adminConfig;
-    final history = app.records.values.where((r) => r.isCompleted).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -71,16 +129,66 @@ class AdminPanelScreen extends ConsumerWidget {
             AppSpacing.lg,
           ),
           children: [
-            const StrykLogo(height: 24, light: true),
-            const SizedBox(height: AppSpacing.md),
-            Text('Runtime controls', style: AppTypography.heading.copyWith(fontSize: 24)),
+            Row(
+              children: [
+                const StrykLogo(height: 28, light: true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Admin Control Panel',
+                    style: AppTypography.heading.copyWith(fontSize: 22),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(
-              'Changes apply to the live session engine without rebuilding the app.',
+              'Gym · Session · Sponsors · Campaigns. Live engine controls.',
               style: AppTypography.body,
             ),
             const SizedBox(height: AppSpacing.lg),
             _section(
               'Gym Settings',
+              [
+                StrykTextField(controller: _gymName, label: 'Gym name'),
+                const SizedBox(height: AppSpacing.sm),
+                StrykTextField(
+                  controller: _lat,
+                  label: 'Latitude',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                StrykTextField(
+                  controller: _lng,
+                  label: 'Longitude',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                StrykButton(
+                  label: 'Save gym details',
+                  variant: StrykButtonVariant.secondary,
+                  onPressed: () => _saveGymFields(config),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _slider(
+                  label: 'Check-in radius: ${config.checkInRadiusMeters.round()} m',
+                  value: config.checkInRadiusMeters,
+                  min: 20,
+                  max: 200,
+                  divisions: 36,
+                  onChanged: (value) =>
+                      _save(config.copyWith(checkInRadiusMeters: value)),
+                ),
+              ],
+            ),
+            _section(
+              'Session',
               [
                 _slider(
                   label: 'Minimum stay: ${config.minStayMinutes} min',
@@ -88,20 +196,28 @@ class AdminPanelScreen extends ConsumerWidget {
                   min: 5,
                   max: 60,
                   divisions: 11,
-                  onChanged: (value) => _save(
-                    ref,
-                    config.copyWith(minStayMinutes: value.round()),
-                  ),
+                  onChanged: (value) =>
+                      _save(config.copyWith(minStayMinutes: value.round())),
                 ),
                 _slider(
-                  label: 'Geofence radius: ${config.geofenceRadiusMeters.round()} m',
-                  value: config.geofenceRadiusMeters,
+                  label:
+                      'Checkout radius: ${config.checkOutRadiusMeters.round()} m',
+                  value: config.checkOutRadiusMeters,
                   min: 20,
-                  max: 100,
-                  divisions: 16,
+                  max: 200,
+                  divisions: 36,
+                  onChanged: (value) =>
+                      _save(config.copyWith(checkOutRadiusMeters: value)),
+                ),
+                _slider(
+                  label:
+                      'Outside duration: ${config.outsideDurationMinutes} min',
+                  value: config.outsideDurationMinutes.toDouble(),
+                  min: 1,
+                  max: 15,
+                  divisions: 14,
                   onChanged: (value) => _save(
-                    ref,
-                    config.copyWith(geofenceRadiusMeters: value),
+                    config.copyWith(outsideDurationMinutes: value.round()),
                   ),
                 ),
                 SwitchListTile(
@@ -109,52 +225,16 @@ class AdminPanelScreen extends ConsumerWidget {
                   title: Text('Gym detection', style: AppTypography.bodyMedium),
                   value: config.gymDetectionEnabled,
                   activeTrackColor: AppColors.amber,
-                  onChanged: (value) => _save(
-                    ref,
-                    config.copyWith(gymDetectionEnabled: value),
-                  ),
+                  onChanged: (value) =>
+                      _save(config.copyWith(gymDetectionEnabled: value)),
                 ),
-              ],
-            ),
-            _section(
-              'Streak',
-              [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text('Streak enabled', style: AppTypography.bodyMedium),
                   value: config.streakEnabled,
                   activeTrackColor: AppColors.amber,
                   onChanged: (value) =>
-                      _save(ref, config.copyWith(streakEnabled: value)),
-                ),
-              ],
-            ),
-            _section(
-              'Share Cards',
-              [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Minimal'),
-                  value: config.cardMinimalEnabled,
-                  activeTrackColor: AppColors.amber,
-                  onChanged: (value) =>
-                      _save(ref, config.copyWith(cardMinimalEnabled: value)),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Photo'),
-                  value: config.cardPhotoEnabled,
-                  activeTrackColor: AppColors.amber,
-                  onChanged: (value) =>
-                      _save(ref, config.copyWith(cardPhotoEnabled: value)),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Achievement'),
-                  value: config.cardAchievementEnabled,
-                  activeTrackColor: AppColors.amber,
-                  onChanged: (value) =>
-                      _save(ref, config.copyWith(cardAchievementEnabled: value)),
+                      _save(config.copyWith(streakEnabled: value)),
                 ),
               ],
             ),
@@ -173,8 +253,9 @@ class AdminPanelScreen extends ConsumerWidget {
                     ),
                   ),
                   child: Text(
-                    'DEMO ONLY — 1 real second = 1 simulated minute. Never use in production.',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+                    'DEMO ONLY — 1 real second = 1 simulated minute.',
+                    style: AppTypography.bodyMedium
+                        .copyWith(color: AppColors.error),
                   ),
                 ),
                 SwitchListTile(
@@ -193,7 +274,36 @@ class AdminPanelScreen extends ConsumerWidget {
                   value: config.demoTimeMode,
                   activeTrackColor: AppColors.error,
                   onChanged: (value) =>
-                      _save(ref, config.copyWith(demoTimeMode: value)),
+                      _save(config.copyWith(demoTimeMode: value)),
+                ),
+              ],
+            ),
+            _section(
+              'Cards',
+              [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Minimal'),
+                  value: config.cardMinimalEnabled,
+                  activeTrackColor: AppColors.amber,
+                  onChanged: (value) =>
+                      _save(config.copyWith(cardMinimalEnabled: value)),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Photo'),
+                  value: config.cardPhotoEnabled,
+                  activeTrackColor: AppColors.amber,
+                  onChanged: (value) =>
+                      _save(config.copyWith(cardPhotoEnabled: value)),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Achievement'),
+                  value: config.cardAchievementEnabled,
+                  activeTrackColor: AppColors.amber,
+                  onChanged: (value) =>
+                      _save(config.copyWith(cardAchievementEnabled: value)),
                 ),
               ],
             ),
@@ -206,63 +316,51 @@ class AdminPanelScreen extends ConsumerWidget {
                   value: config.maintenanceMode,
                   activeTrackColor: AppColors.error,
                   onChanged: (value) =>
-                      _save(ref, config.copyWith(maintenanceMode: value)),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Announcement', style: AppTypography.bodyMedium),
-                  subtitle: Text(
-                    config.announcement.isEmpty
-                        ? 'No announcement'
-                        : config.announcement,
-                    style: AppTypography.label,
-                  ),
-                  trailing: const Icon(Icons.edit, color: AppColors.textMuted),
-                  onTap: () async {
-                    final controller =
-                        TextEditingController(text: config.announcement);
-                    final value = await showDialog<String>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: AppColors.surface,
-                        title: Text('Announcement', style: AppTypography.subheading),
-                        content: TextField(
-                          controller: controller,
-                          maxLines: 3,
-                          style: AppTypography.bodyMedium,
-                          autofocus: true,
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(context, controller.text.trim()),
-                            child: const Text('Save'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (value != null) {
-                      await _save(ref, config.copyWith(announcement: value));
-                    }
-                  },
+                      _save(config.copyWith(maintenanceMode: value)),
                 ),
               ],
             ),
             _section(
-              'Users & Activity',
+              'Monthly Leaderboard → Sponsors',
               [
-                _stat('Signed-in user', app.user?.name ?? '—'),
-                _stat('Phone', app.user?.phone ?? '—'),
-                _stat('Active gym', app.gym?.name ?? 'None'),
-                _stat('Completed gym days', '$history'),
-                _stat('Current streak', '${app.streak.current}'),
-                _stat(
-                  'Today session',
-                  app.session?.status.name ?? 'idle',
+                Text(
+                  '3 pools: App · Daily card · Monthly card. Pick placement when adding a sponsor.',
+                  style: AppTypography.body,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const AdminSponsorsSection(),
+              ],
+            ),
+            _section(
+              'Monthly Competition',
+              [
+                Text(
+                  'Top 5 is calculated automatically from verified gym days. Configure sponsor branding, then publish to lock the month.',
+                  style: AppTypography.body,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                StrykButton(
+                  label: 'Publish monthly results',
+                  variant: StrykButtonVariant.secondary,
+                  onPressed: () => _publishMonth(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                StrykButton(
+                  label: 'Save draft snapshot',
+                  variant: StrykButtonVariant.ghost,
+                  onPressed: () => _saveDraft(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                StrykButton(
+                  label: 'Open leaderboard',
+                  variant: StrykButtonVariant.ghost,
+                  onPressed: () => context.push(AppRoutes.leaderboard),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                StrykButton(
+                  label: 'Preview monthly result',
+                  variant: StrykButtonVariant.ghost,
+                  onPressed: () => context.push(AppRoutes.monthlyResult),
                 ),
               ],
             ),
@@ -272,14 +370,146 @@ class AdminPanelScreen extends ConsumerWidget {
     );
   }
 
+  Future<List<MonthlyPlace>> _liveTopFive() async {
+    final app = ref.read(appControllerProvider);
+    final month = MonthlyLeaderboardService.monthKey();
+    final days = MonthlyLeaderboardService.verifiedDaysForMonth(
+      app.records,
+      month,
+    );
+    final user = app.user;
+    final local = user == null
+        ? null
+        : MonthlyPlace(
+            userId: user.id,
+            displayName: user.name.trim().isEmpty ? 'Athlete' : user.name.trim(),
+            verifiedDays: days,
+            gymName: app.effectiveGym?.name ?? '',
+          );
+    if (local != null && days > 0) {
+      await MonthlyLeaderboardService().syncUserEntry(
+        userId: local.userId,
+        displayName: local.displayName,
+        verifiedDays: days,
+        gymName: local.gymName,
+      );
+    }
+    return MonthlyLeaderboardService().fetchTop(
+      month: month,
+      limit: 5,
+      localFallback: local,
+    );
+  }
+
+  Future<void> _saveDraft(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final month = MonthlyResultRepository.monthKey();
+      final top = await _liveTopFive();
+      final sponsors = await SponsorRepository().fetchActive(
+        limit: 5,
+        placement: SponsorPlacement.monthlyCard,
+      );
+      await MonthlyResultRepository().saveDraft(
+        month: month,
+        topFive: top,
+        sponsors: sponsors,
+      );
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.charcoal,
+          content: Text('Draft saved for $month', style: AppTypography.bodyMedium),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.charcoal,
+          content: Text('Draft could not be saved. $e', style: AppTypography.bodyMedium),
+        ),
+      );
+    }
+  }
+
+  Future<void> _publishMonth(BuildContext context) async {
+    final month = MonthlyResultRepository.monthKey();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.charcoal,
+        content: Text('Publishing $month…', style: AppTypography.bodyMedium),
+      ),
+    );
+    try {
+      final top = await _liveTopFive();
+      if (top.isEmpty) {
+        throw StateError('No verified sessions this month yet.');
+      }
+      final sponsors = await SponsorRepository().fetchActive(
+        limit: 5,
+        placement: SponsorPlacement.monthlyCard,
+      );
+      await MonthlyResultRepository().publishMonth(
+        month: month,
+        topFive: top,
+        sponsors: sponsors,
+      );
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.charcoal,
+          content: Text(
+            'Month $month published. Lifetime streak unchanged.',
+            style: AppTypography.bodyMedium,
+          ),
+        ),
+      );
+      context.push(AppRoutes.monthlyResult);
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.charcoal,
+          content: Text(
+            'Monthly result could not be finalized. $e',
+            style: AppTypography.bodyMedium,
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _section(String title, List<Widget> children) {
+    final icon = switch (title) {
+      'Gym Settings' || 'Gym' => Icons.fitness_center_rounded,
+      'Session' => Icons.timer_outlined,
+      'Streak' => Icons.local_fire_department_rounded,
+      'Cards' => Icons.style_outlined,
+      'App' => Icons.settings_outlined,
+      'Sponsors' ||
+      'Sponsors (Firestore)' ||
+      'Monthly Leaderboard → Sponsors' =>
+        Icons.handshake_outlined,
+      'Monthly Competition' => Icons.emoji_events_outlined,
+      _ => Icons.tune_rounded,
+    };
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: StrykCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AppTypography.subheading),
+            Row(
+              children: [
+                Icon(icon, color: AppColors.amber, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(title, style: AppTypography.subheading),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.md),
             ...children,
           ],
@@ -310,27 +540,5 @@ class AdminPanelScreen extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  Widget _stat(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: AppTypography.label)),
-          Flexible(
-            child: Text(
-              value,
-              style: AppTypography.bodyMedium,
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _save(WidgetRef ref, AdminConfig config) {
-    return ref.read(appControllerProvider.notifier).updateAdminConfig(config);
   }
 }

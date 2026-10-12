@@ -9,7 +9,16 @@ import '../theme/app_theme.dart';
 import 'progress_ring.dart';
 
 class SessionTimer extends ConsumerWidget {
-  const SessionTimer({super.key});
+  const SessionTimer({
+    super.key,
+    this.compact = false,
+    this.showMeter = true,
+    this.showCaption = true,
+  });
+
+  final bool compact;
+  final bool showMeter;
+  final bool showCaption;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,72 +33,96 @@ class SessionTimer extends ConsumerWidget {
         remaining == Duration.zero;
     final start = state.session?.startTime;
     final color = IntensityColors.timerColor(elapsed);
-    // Fill toward min stay, then keep rising gently past 100%.
     final progress = secured
         ? (0.7 + (elapsed.inMinutes / 90).clamp(0, 0.3)).clamp(0.7, 1.0)
         : (elapsed.inMilliseconds / minStay.inMilliseconds).clamp(0.0, 1.0);
 
-    final maxSide = MediaQuery.sizeOf(context).width * 0.58;
+    final width = MediaQuery.sizeOf(context).width;
+    final height = MediaQuery.sizeOf(context).height;
+    final maxSide = compact
+        ? (width * 0.30).clamp(100.0, 140.0)
+        : (width * 0.58).clamp(180.0, height < 700 ? 210.0 : 248.0);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        TweenAnimationBuilder<Color?>(
-          tween: ColorTween(end: color),
-          duration: const Duration(milliseconds: 450),
-          builder: (context, animatedColor, child) {
-            final ringColor = animatedColor ?? color;
-            return ProgressRing(
-              size: maxSide,
-              progress: progress,
-              color: ringColor,
-              stroke: 12,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      Dates.friendlyDuration(elapsed),
-                      style: AppTypography.display.copyWith(
-                        fontSize: 40,
-                        color: ringColor,
-                      ),
-                    ),
+        ProgressRing(
+          size: maxSide,
+          progress: progress,
+          color: secured ? AppColors.amber : color,
+          stroke: compact ? 9 : 12,
+          trackColor: AppColors.charcoalDeep,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  Dates.formatDuration(elapsed),
+                  style: AppTypography.display.copyWith(
+                    fontSize: compact ? 22 : 38,
+                    letterSpacing: -1,
+                    color: AppColors.white,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    secured ? 'SESSION VALID' : 'elapsed',
-                    style: AppTypography.label.copyWith(
-                      letterSpacing: 1.2,
-                      color: secured ? AppColors.success : AppColors.textMuted,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            );
-          },
+              const SizedBox(height: 4),
+              Text(
+                secured ? 'STREAK SECURED' : 'LIVE',
+                style: AppTypography.label.copyWith(
+                  letterSpacing: 1.2,
+                  fontSize: compact ? 8 : 10,
+                  color: secured ? AppColors.amber : AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        if (start != null)
-          Text(
-            'Started ${Dates.time.format(start)}',
-            style: AppTypography.body,
+        if (showMeter) ...[
+          const SizedBox(height: AppSpacing.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 4,
+              backgroundColor: AppColors.charcoal,
+              color: secured ? AppColors.amber : color,
+            ),
           ),
-        Text(
-          secured
-              ? 'Streak secured. Timer keeps running.'
-              : '${remaining.inMinutes.clamp(0, 999)} min to secure today’s streak',
-          style: AppTypography.bodyMedium.copyWith(
-            color: secured ? AppColors.success : color,
+        ],
+        if (showCaption) ...[
+          const SizedBox(height: 10),
+          if (start != null)
+            Text(
+              'Started ${Dates.time.format(start)} · Min stay ${minStay.inMinutes}m',
+              style: AppTypography.body.copyWith(fontSize: 12),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          const SizedBox(height: 4),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 280),
+            style: AppTypography.bodyMedium.copyWith(
+              color: secured ? AppColors.amber : color,
+              fontSize: 13,
+            ),
+            child: Text(
+              secured
+                  ? 'Streak secured. Timer keeps running until checkout.'
+                  : '${remaining.inMinutes.clamp(0, 999)} min to secure today’s streak',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          textAlign: TextAlign.center,
-        ),
-        if (state.adminConfig.demoTimeMode) ...[
-          const SizedBox(height: 6),
-          Text(
-            'DEMO TIME · 1s = 1m',
-            style: AppTypography.label.copyWith(color: AppColors.error),
-          ),
+          if (state.adminConfig.demoTimeMode) ...[
+            const SizedBox(height: 4),
+            Text(
+              'DEMO TIME · 1s = 1m',
+              style: AppTypography.label.copyWith(color: AppColors.error),
+            ),
+          ],
         ],
       ],
     );

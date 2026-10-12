@@ -175,10 +175,40 @@ class _ImageAdjustScreenState extends State<ImageAdjustScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Pinch to zoom · drag to reposition',
+                    'Pinch to zoom · drag to pan · reposition inside the frame',
                     style: AppTypography.label.copyWith(color: AppColors.textMuted),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        tooltip: 'Reset',
+                        onPressed: () => _transform.value = Matrix4.identity(),
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                      IconButton(
+                        tooltip: 'Zoom in',
+                        onPressed: () {
+                          final next = _transform.value.clone()
+                            ..scaleByDouble(1.15, 1.15, 1, 1);
+                          _transform.value = next;
+                        },
+                        icon: const Icon(Icons.zoom_in_rounded),
+                      ),
+                      IconButton(
+                        tooltip: 'Zoom out',
+                        onPressed: () {
+                          final next = _transform.value.clone()
+                            ..scaleByDouble(0.87, 0.87, 1, 1);
+                          _transform.value = next;
+                        },
+                        icon: const Icon(Icons.zoom_out_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(

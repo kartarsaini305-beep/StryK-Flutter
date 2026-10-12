@@ -34,8 +34,12 @@ class DailyRecord {
   final String? verificationUrl;
   final bool wasSundayProtected;
   final bool wasStreakSaved;
+  /// Session-level photo shared by every card template.
   final String? optionalPhotoPath;
   final String? cardStyle;
+
+  /// Alias — photo belongs to the session/day, never to a card index.
+  String? get sessionPhotoPath => optionalPhotoPath;
 
   bool get isCompleted => kind == DayKind.completed;
 

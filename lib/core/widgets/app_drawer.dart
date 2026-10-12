@@ -21,14 +21,20 @@ class StrykDrawer extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const StrykLogo(height: 28, light: true),
-              const SizedBox(height: 8),
-              Text('StryK', style: AppTypography.label),
+              const StrykLogo(height: 26, light: true, showTagline: true),
               const SizedBox(height: AppSpacing.xl),
               _item(context, 'Home', AppRoutes.home, replace: true),
-              _item(context, 'My StryK', AppRoutes.streak, replace: true),
-              _item(context, 'Change Gym', AppRoutes.selectGym, push: true),
+              _item(context, 'My Activity', AppRoutes.history, replace: true),
+              _item(context, 'Cards', AppRoutes.cards, replace: true),
+              _item(context, 'Leaderboard', AppRoutes.leaderboard, push: true),
+              _item(
+                context,
+                'Monthly Result',
+                AppRoutes.monthlyResult,
+                push: true,
+              ),
               _item(context, 'Profile', AppRoutes.profile, replace: true),
+              _item(context, 'Change Gym', AppRoutes.selectGym, push: true),
               _item(context, 'Privacy & Terms', AppRoutes.privacy, push: true),
               _item(
                 context,
@@ -64,20 +70,23 @@ class StrykDrawer extends ConsumerWidget {
     bool push = false,
     bool replace = false,
   }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minVerticalPadding: 14,
-      title: Text(label, style: AppTypography.bodyMedium),
-      onTap: () {
-        Navigator.pop(context);
-        if (push) {
-          context.push(route);
-        } else if (replace) {
-          context.go(route);
-        } else {
-          context.push(route);
-        }
-      },
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        minVerticalPadding: 14,
+        title: Text(label, style: AppTypography.bodyMedium),
+        onTap: () {
+          Navigator.pop(context);
+          if (push) {
+            context.push(route);
+          } else if (replace) {
+            context.go(route);
+          } else {
+            context.push(route);
+          }
+        },
+      ),
     );
   }
 }

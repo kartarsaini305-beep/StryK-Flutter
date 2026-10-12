@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    match /sponsors/{sponsorId} {
+      allow read: if true;
+      // Signed-in operators can manage sponsors; admin claim preferred.
+      allow write: if isAdmin() || signedIn();
+    }
+
+    match /monthlyLeaderboard/{monthId} {
+      allow read: if true;
+      allow write: if false;
+      match /entries/{userId} {
+        allow read: if true;
+        allow create, update: if signedIn() && request.auth.uid == userId;
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /monthlyResults/{monthId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        && resource.data.locked != true
+        && resource.data.status != 'final'
+        && resource.data.status != 'published';
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

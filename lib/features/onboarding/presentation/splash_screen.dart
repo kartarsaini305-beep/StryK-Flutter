@@ -18,8 +18,9 @@ class SplashScreen extends ConsumerStatefulWidget {
 class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _opacity;
-  late final Animation<double> _scale;
+  late final Animation<double> _markOpacity;
+  late final Animation<double> _markScale;
+  late final Animation<double> _fullOpacity;
   late final Animation<double> _glow;
   var _navigated = false;
   var _animationDone = false;
@@ -29,21 +30,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1250),
+      duration: const Duration(milliseconds: 1700),
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0, 0.55, curve: Curves.easeOutCubic),
-    );
-    _scale = Tween<double>(begin: 0.88, end: 1).animate(
+    _markOpacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: 1), weight: 30),
+      TweenSequenceItem(tween: ConstantTween(1), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 1, end: 0), weight: 20),
+      TweenSequenceItem(tween: ConstantTween(0), weight: 25),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+    _markScale = Tween<double>(begin: 0.78, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0, 0.75, curve: Curves.easeOutCubic),
+        curve: const Interval(0, 0.35, curve: Curves.easeOutBack),
       ),
+    );
+    _fullOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.5, 0.85, curve: Curves.easeOutCubic),
     );
     _glow = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.35, 1, curve: Curves.easeOut),
+      curve: const Interval(0.08, 0.9, curve: Curves.easeOut),
     );
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -80,42 +87,52 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.splashBackground,
         body: AnimatedBuilder(
           animation: _controller,
-          builder: (context, child) {
+          builder: (context, _) {
             return Stack(
               fit: StackFit.expand,
               children: [
-                Center(
-                  child: Opacity(
-                    opacity: _glow.value * 0.35,
-                    child: Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.amber.withValues(alpha: 0.22),
-                            blurRadius: 60,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.12),
+                      radius: 0.95,
+                      colors: [
+                        AppColors.amber.withValues(alpha: 0.16 * _glow.value),
+                        AppColors.background,
+                      ],
                     ),
                   ),
                 ),
                 Center(
-                  child: Opacity(
-                    opacity: _opacity.value,
-                    child: Transform.scale(scale: _scale.value, child: child),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Opacity(
+                        opacity: _markOpacity.value.clamp(0.0, 1.0),
+                        child: Transform.scale(
+                          scale: _markScale.value,
+                          child: const StrykMark(size: 88, glow: true),
+                        ),
+                      ),
+                      Opacity(
+                        opacity: _fullOpacity.value,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32),
+                          child: StrykLogo(
+                            height: 48,
+                            variant: StrykLogoVariant.full,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             );
           },
-          child: const StrykLogo(height: 52, light: true),
         ),
       ),
     );

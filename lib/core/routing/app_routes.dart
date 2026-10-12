@@ -1,13 +1,20 @@
 abstract final class AppRoutes {
   static const splash = '/';
   static const welcome = '/welcome';
+  static const onboarding = '/onboarding';
   static const phone = '/phone';
+  static const leaderboard = '/leaderboard';
+  static const monthlyResult = '/monthly-result';
   static const otp = '/otp/:phone';
   static const name = '/name';
   static const selectGym = '/select-gym';
   static const home = '/home';
-  static const streak = '/streak';
+  static const history = '/history';
+  static const cards = '/cards';
   static const profile = '/profile';
+  static const editProfile = '/edit-profile';
+  static const changePhone = '/change-phone';
+  static const changePhoneNew = '/change-phone/new';
   static const share = '/share/:dateKey';
   static const sharePreview = '/share/:dateKey/:style';
   static const day = '/day/:dateKey';
@@ -16,6 +23,9 @@ abstract final class AppRoutes {
   static const admin = '/admin';
   static const privacy = '/privacy';
   static const terms = '/terms';
+
+  /// Legacy alias used by older navigation helpers.
+  static const streak = history;
 
   static String otpFor(String phone) => '/otp/$phone';
   static String shareFor(String dateKey) => '/share/$dateKey';

@@ -36,18 +36,57 @@ abstract final class AppTheme {
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
+        centerTitle: true,
+        // Never collapse actions into a ⋮ overflow menu.
+        actionsIconTheme: const IconThemeData(color: AppColors.textPrimary),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         titleTextStyle: AppTypography.subheading,
         systemOverlayStyle: SystemUiOverlayStyle.light,
+        toolbarHeight: 56,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.backgroundElevated,
+        indicatorColor: AppColors.amber.withValues(alpha: 0.14),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        height: 64,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return AppTypography.label.copyWith(
+            fontSize: 10,
+            letterSpacing: 0.4,
+            color: selected ? AppColors.amber : AppColors.textMuted,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.amber : AppColors.textMuted,
+            size: 22,
+          );
+        }),
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           side: const BorderSide(color: AppColors.borderSubtle),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
       ),
       dividerColor: AppColors.borderSubtle,

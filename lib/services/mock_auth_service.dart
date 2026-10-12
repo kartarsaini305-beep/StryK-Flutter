@@ -2,9 +2,10 @@ import '../app/config.dart';
 import '../features/auth/models/user_profile.dart';
 import '../features/auth/services/auth_service.dart';
 
+/// Test/demo fallback. Production uses [FirebasePhoneAuthService].
 class MockAuthService implements AuthService {
   @override
-  Future<void> sendOtp(String phone) async {
+  Future<void> sendOtp(String phone, {bool forceResend = false}) async {
     await Future<void>.delayed(const Duration(milliseconds: 350));
   }
 
@@ -20,9 +21,18 @@ class MockAuthService implements AuthService {
     }
     if (existing != null && existing.phone == phone) return existing;
     return UserProfile(
-      id: 'user-$phone',
+      id: existing?.id ?? 'user-$phone',
       phone: phone,
       name: existing?.name ?? '',
+      city: existing?.city ?? '',
+      goal: existing?.goal ?? '',
+      photoPath: existing?.photoPath,
     );
   }
+
+  @override
+  Future<UserProfile?> currentSession() async => null;
+
+  @override
+  Future<void> signOut() async {}
 }

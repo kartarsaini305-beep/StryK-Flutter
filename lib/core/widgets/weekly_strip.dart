@@ -40,49 +40,68 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = Dates.isSameDay(day, DateTime.now());
     final future = day.isAfter(Dates.calendarDay(DateTime.now()));
+    final completed = record?.kind == DayKind.completed;
+    final protected = record?.kind == DayKind.sundayProtected ||
+        record?.kind == DayKind.streakSaved;
+    final missed = record?.kind == DayKind.missed;
+
     Color fill = AppColors.charcoal;
     Color text = AppColors.textMuted;
-    var label = Dates.weekDay.format(day).substring(0, 1);
-    if (record?.kind == DayKind.completed) {
+    if (completed) {
       fill = AppColors.amber;
       text = AppColors.textOnLight;
-    } else if (record?.kind == DayKind.sundayProtected ||
-        record?.kind == DayKind.streakSaved) {
+    } else if (protected) {
       fill = AppColors.protected;
       text = AppColors.textOnLight;
-    } else if (record?.kind == DayKind.missed) {
+    } else if (missed) {
       fill = AppColors.charcoalDeep;
     }
     if (future) {
       fill = Colors.transparent;
-      text = AppColors.textMuted;
+      text = AppColors.textMuted.withValues(alpha: 0.45);
     }
 
     return Semantics(
       button: onTap != null && !future,
-      label: '${Dates.weekDay.format(day)} ${record?.kind.name ?? 'no activity'}',
+      label:
+          '${Dates.weekDay.format(day)} ${record?.kind.name ?? 'no activity'}',
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
         child: GestureDetector(
           onTap: future ? null : () => onTap?.call(day),
           child: Column(
             children: [
-              Text(label, style: AppTypography.label.copyWith(fontSize: 11)),
+              Text(
+                Dates.weekDay.format(day).substring(0, 1),
+                style: AppTypography.label.copyWith(fontSize: 10),
+              ),
               const SizedBox(height: 8),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
-                height: 36,
+                curve: Curves.easeOut,
+                height: 38,
                 decoration: BoxDecoration(
                   color: fill,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(11),
                   border: today
-                      ? Border.all(color: AppColors.white.withValues(alpha: 0.35))
+                      ? Border.all(
+                          color: completed
+                              ? AppColors.white.withValues(alpha: 0.55)
+                              : AppColors.amber,
+                          width: 1.4,
+                        )
                       : null,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${day.day}',
-                  style: AppTypography.bodyMedium.copyWith(color: text, fontSize: 13),
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: text,
+                    fontSize: 13,
+                    fontVariations: [
+                      FontVariation('wght', today || completed ? 700 : 500),
+                    ],
+                  ),
                 ),
               ),
             ],

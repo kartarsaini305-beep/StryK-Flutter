@@ -7,6 +7,10 @@ environment:
   sdk: ^3.13.4
 
 dependencies:
+  cloud_firestore: ^6.10.0
+  firebase_auth: ^6.7.0
+  firebase_core: ^4.15.0
+  firebase_storage: ^13.6.0
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.0.3
@@ -27,8 +31,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/images/stryk_mark.png
     - assets/images/stryk_logo.png
     - assets/images/stryk_logo_light.png
+    - assets/images/stryk_logo_full.png
     - assets/images/stryk-logo.png
   fonts:
     - family: Inter

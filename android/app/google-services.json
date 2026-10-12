@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "264138614526",
+    "project_id": "stryk-c02ab",
+    "storage_bucket": "stryk-c02ab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264138614526:android:4d77f43d11fba02c96e7af",
+        "android_client_info": {
+          "package_name": "com.stryk.stryk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwrky3SOn9aI-CtVwIqJR90hqP6mAC1_Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

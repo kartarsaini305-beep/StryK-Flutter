@@ -7,7 +7,6 @@ import '../../../core/routing/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/stryk_text_field.dart';
 import '../../../providers/app_controller.dart';
-import '../../../services/mock_admin_auth_service.dart';
 import '../../../widgets/stryk_button.dart';
 import '../../../widgets/stryk_logo.dart';
 import '../services/admin_auth_service.dart';
@@ -176,11 +175,6 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Admin identity: ${MockAdminAuthService.adminEmail}',
-              style: AppTypography.label,
-            ),
           ],
         ),
       ),

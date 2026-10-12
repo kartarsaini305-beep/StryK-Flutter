@@ -35,6 +35,24 @@ class PersistedApp {
   final StreakProtection protection;
   final AppSettings settings;
   final LocationSnapshot location;
+
+  PersistedApp copyWith({
+    bool? authenticated,
+    UserProfile? user,
+    bool clearUser = false,
+  }) {
+    return PersistedApp(
+      authenticated: authenticated ?? this.authenticated,
+      user: clearUser ? null : (user ?? this.user),
+      gym: gym,
+      session: session,
+      streak: streak,
+      records: records,
+      protection: protection,
+      settings: settings,
+      location: location,
+    );
+  }
 }
 
 class LocalStorageService {
@@ -55,9 +73,16 @@ class LocalStorageService {
   static const _protectionKey = 'protection';
   static const _settingsKey = 'settings';
   static const _locationKey = 'location';
+  static const _onboardingKey = 'onboarding_seen';
 
   Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  bool get onboardingSeen => prefs.getBool(_onboardingKey) ?? false;
+
+  Future<void> setOnboardingSeen(bool value) async {
+    await prefs.setBool(_onboardingKey, value);
   }
 
   SharedPreferences get prefs {

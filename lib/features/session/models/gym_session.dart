@@ -1,3 +1,6 @@
+import '../../../core/utils/dates.dart';
+import '../../../core/utils/geo.dart';
+
 enum SessionStatus {
   idle,
   tracking,
@@ -13,6 +16,8 @@ class GymSession {
     this.startTime,
     this.endTime,
     this.securedAt,
+    this.checkInPoint,
+    this.leftZoneAt,
   });
 
   final String gymId;
@@ -20,6 +25,8 @@ class GymSession {
   final DateTime? startTime;
   final DateTime? endTime;
   final DateTime? securedAt;
+  final GeoPoint? checkInPoint;
+  final DateTime? leftZoneAt;
 
   bool get isActive =>
       status == SessionStatus.tracking || status == SessionStatus.secured;
@@ -28,6 +35,14 @@ class GymSession {
       status == SessionStatus.secured || status == SessionStatus.completed;
 
   bool get isCheckedOut => status == SessionStatus.completed;
+
+  /// Whether this session belongs to [wall]'s local calendar day.
+  /// Idle shells with no start time are treated as the current day.
+  bool belongsToLocalDay(DateTime wall) {
+    final start = startTime;
+    if (start == null) return status == SessionStatus.idle;
+    return Dates.isSameDay(start, wall);
+  }
 
   Duration elapsed([DateTime? now]) {
     final start = startTime;
@@ -43,9 +58,13 @@ class GymSession {
     DateTime? startTime,
     DateTime? endTime,
     DateTime? securedAt,
+    GeoPoint? checkInPoint,
+    DateTime? leftZoneAt,
     bool clearEnd = false,
     bool clearStart = false,
     bool clearSecured = false,
+    bool clearCheckIn = false,
+    bool clearLeftZone = false,
   }) {
     return GymSession(
       gymId: gymId ?? this.gymId,
@@ -53,6 +72,8 @@ class GymSession {
       startTime: clearStart ? null : (startTime ?? this.startTime),
       endTime: clearEnd ? null : (endTime ?? this.endTime),
       securedAt: clearSecured ? null : (securedAt ?? this.securedAt),
+      checkInPoint: clearCheckIn ? null : (checkInPoint ?? this.checkInPoint),
+      leftZoneAt: clearLeftZone ? null : (leftZoneAt ?? this.leftZoneAt),
     );
   }
 
@@ -62,6 +83,9 @@ class GymSession {
         'startTime': startTime?.toIso8601String(),
         'endTime': endTime?.toIso8601String(),
         'securedAt': securedAt?.toIso8601String(),
+        'checkInLat': checkInPoint?.latitude,
+        'checkInLng': checkInPoint?.longitude,
+        'leftZoneAt': leftZoneAt?.toIso8601String(),
       };
 
   factory GymSession.fromJson(Map<String, dynamic> json) {
@@ -70,6 +94,8 @@ class GymSession {
       (value) => value.name == raw,
       orElse: () => SessionStatus.idle,
     );
+    final lat = (json['checkInLat'] as num?)?.toDouble();
+    final lng = (json['checkInLng'] as num?)?.toDouble();
     return GymSession(
       gymId: json['gymId'] as String,
       status: status,
@@ -82,6 +108,10 @@ class GymSession {
       securedAt: json['securedAt'] == null
           ? null
           : DateTime.parse(json['securedAt'] as String),
+      checkInPoint: lat != null && lng != null ? GeoPoint(lat, lng) : null,
+      leftZoneAt: json['leftZoneAt'] == null
+          ? null
+          : DateTime.parse(json['leftZoneAt'] as String),
     );
   }
 

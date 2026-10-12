@@ -5,11 +5,14 @@ import 'package:stryk/core/utils/geo.dart';
 import 'package:stryk/core/utils/session_clock.dart';
 import 'package:stryk/features/admin/models/admin_config.dart';
 import 'package:stryk/features/gyms/models/gym.dart';
+import 'package:stryk/features/profile/models/app_settings.dart';
 import 'package:stryk/features/session/models/gym_session.dart';
+import 'package:stryk/features/session/models/location_snapshot.dart';
 import 'package:stryk/features/share/models/share_payload.dart';
 import 'package:stryk/features/streak/models/daily_record.dart';
 import 'package:stryk/features/streak/models/streak_protection.dart';
 import 'package:stryk/features/streak/models/streak_snapshot.dart';
+import 'package:stryk/providers/app_state.dart';
 import 'package:stryk/services/mock_gym_service.dart';
 import 'package:stryk/services/mock_streak_service.dart';
 import 'package:stryk/services/mock_verification_service.dart';
@@ -75,6 +78,27 @@ void main() {
     );
   });
 
+  test('session photo is shared by payload for every card template', () {
+    final record = DailyRecord(
+      dateKey: '2026-04-01',
+      kind: DayKind.completed,
+      gymName: 'Iron House Gym',
+      arrivalTime: DateTime(2026, 4, 1, 15, 4),
+      endTime: DateTime(2026, 4, 1, 16, 17),
+      duration: const Duration(hours: 1, minutes: 13),
+      streakAtPoint: 12,
+      optionalPhotoPath: '/tmp/session-photo.jpg',
+    );
+    final payload = SharePayload.fromRecord(record);
+    expect(record.sessionPhotoPath, '/tmp/session-photo.jpg');
+    expect(payload.photoPath, '/tmp/session-photo.jpg');
+    // Template selection must not gate photo existence.
+    for (final style in ShareCardStyle.values) {
+      expect(SharePayload.fromRecord(record).photoPath, payload.photoPath);
+      expect(style.name, isNotEmpty);
+    }
+  });
+
   test('share payload uses the selected historical record, not a hardcoded day', () {
     final verification = MockVerificationService();
     final older = verification.stamp(
@@ -127,6 +151,8 @@ void main() {
       IntensityColors.calendarIntensity(const Duration(minutes: 55)),
       IntensityColors.dark,
     );
+    expect(IntensityColors.light, isNot(IntensityColors.medium));
+    expect(IntensityColors.medium, isNot(IntensityColors.dark));
   });
 
   test('session secured status keeps timer active until checkout', () {
@@ -142,5 +168,67 @@ void main() {
     expect(session.isActive, isTrue);
     expect(session.isCheckedOut, isFalse);
     expect(session.elapsed(now), const Duration(hours: 1, minutes: 13));
+  });
+
+  test('yesterday session does not belong to next local calendar day', () {
+    final session = GymSession(
+      gymId: gym.id,
+      status: SessionStatus.secured,
+      startTime: DateTime(2026, 10, 5, 18, 0),
+      securedAt: DateTime(2026, 10, 5, 18, 20),
+    );
+    expect(session.belongsToLocalDay(DateTime(2026, 10, 5, 23, 59)), isTrue);
+    expect(session.belongsToLocalDay(DateTime(2026, 10, 6, 0, 0)), isFalse);
+  });
+
+  test('todayStatus ignores previous-day session and allows fresh check-in', () {
+    final oct5Session = GymSession(
+      gymId: gym.id,
+      status: SessionStatus.completed,
+      startTime: DateTime(2026, 10, 5, 15, 0),
+      endTime: DateTime(2026, 10, 5, 16, 0),
+      securedAt: DateTime(2026, 10, 5, 15, 20),
+    );
+    final oct5Record = DailyRecord(
+      dateKey: '2026-10-05',
+      kind: DayKind.completed,
+      gymId: gym.id,
+      gymName: gym.name,
+      arrivalTime: DateTime(2026, 10, 5, 15, 0),
+      endTime: DateTime(2026, 10, 5, 16, 0),
+      duration: const Duration(hours: 1),
+      streakAtPoint: 1,
+    );
+    final state = AppState(
+      ready: true,
+      authenticated: true,
+      adminAuthenticated: false,
+      user: null,
+      gym: gym,
+      session: oct5Session,
+      streak: const StreakSnapshot(current: 1, best: 1, totalGymDays: 1),
+      records: {'2026-10-05': oct5Record},
+      protection: const StreakProtection(),
+      settings: const AppSettings(),
+      location: LocationSnapshot(
+        point: gym.location,
+        presence: DemoPresence.inside,
+      ),
+      adminConfig: const AdminConfig(),
+    );
+
+    // Still 5 Oct → completed for that day.
+    expect(
+      state.todayStatus(DateTime(2026, 10, 5, 20, 0)),
+      TodayStatus.completed,
+    );
+    // After midnight 6 Oct with yesterday's session still in memory → fresh.
+    expect(
+      state.todayStatus(DateTime(2026, 10, 6, 0, 1)),
+      TodayStatus.readyToCheckIn,
+    );
+    // History for 5 Oct remains.
+    expect(state.records['2026-10-05']?.isCompleted, isTrue);
+    expect(state.records.containsKey('2026-10-06'), isFalse);
   });
 }

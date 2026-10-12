@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../features/share/models/share_payload.dart';
+import '../../features/sponsors/presentation/sponsor_logo.dart';
 import '../../widgets/stryk_logo.dart';
 import '../theme/app_theme.dart';
 import '../utils/dates.dart';
@@ -21,18 +21,23 @@ class ShareCardCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Key forces rebuild when the shared session photo changes.
     return AspectRatio(
       aspectRatio: 4 / 5,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final scale = (constraints.maxWidth / 320).clamp(0.72, 1.15);
-          return switch (style) {
-            ShareCardStyle.minimal =>
-              _MinimalCard(payload: payload, scale: scale),
-            ShareCardStyle.photo => _PhotoCard(payload: payload, scale: scale),
-            ShareCardStyle.achievement =>
-              _AchievementCard(payload: payload, scale: scale),
-          };
+          return KeyedSubtree(
+            key: ValueKey('card-${style.name}-${payload.photoPath ?? 'none'}'),
+            child: switch (style) {
+              ShareCardStyle.minimal =>
+                _MinimalCard(payload: payload, scale: scale),
+              ShareCardStyle.photo =>
+                _PhotoCard(payload: payload, scale: scale),
+              ShareCardStyle.achievement =>
+                _AchievementCard(payload: payload, scale: scale),
+            },
+          );
         },
       ),
     );
@@ -166,132 +171,180 @@ class _MinimalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pad = 18.0 * scale;
-    return ColoredBox(
-      color: const Color(0xFF0E0E0E),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(pad, pad, pad, pad * 0.85),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final content = Padding(
+      padding: EdgeInsets.fromLTRB(pad, pad, pad, pad * 0.85),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              StrykLogo(height: 20 * scale, light: true),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  'VERIFIED',
+                  style: AppTypography.label.copyWith(
+                    fontSize: 8.5 * scale,
+                    letterSpacing: 1.2,
+                    color: AppColors.amber,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(flex: 2),
+          Text(
+            'DAY ${payload.dayNumber}',
+            style: AppTypography.label.copyWith(
+              letterSpacing: 2,
+              fontSize: 11 * scale,
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: 8 * scale),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StrykLogo(height: 18 * scale, light: true),
-                const Spacer(),
-                Flexible(
-                  child: Text(
-                    'BUILD BETTER HABITS',
-                    style: AppTypography.label.copyWith(
-                      fontSize: 8.5 * scale,
-                      letterSpacing: 1.2,
-                      color: AppColors.textMuted,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
+                Text(
+                  'JUST',
+                  style: AppTypography.display.copyWith(
+                    fontSize: 40 * scale,
+                    height: 0.95,
+                    color: AppColors.white,
+                  ),
+                ),
+                Text(
+                  'SHOWED UP.',
+                  style: AppTypography.display.copyWith(
+                    fontSize: 40 * scale,
+                    height: 0.95,
+                    color: AppColors.amber,
                   ),
                 ),
               ],
             ),
-            const Spacer(flex: 2),
+          ),
+          SizedBox(height: 8 * scale),
+          Container(width: 48 * scale, height: 2.5, color: AppColors.amber),
+          const Spacer(),
+          _MetaLine(
+            icon: Icons.location_on_outlined,
+            text:
+                '${payload.gymName.toUpperCase()}  ·  ${Dates.upperDay(payload.date)}',
+            scale: scale,
+          ),
+          SizedBox(height: 6 * scale),
+          _MetaLine(
+            icon: Icons.schedule,
+            text: Dates.timeRange(payload.startTime, payload.endTime),
+            scale: scale,
+          ),
+          SizedBox(height: 6 * scale),
+          _MetaLine(
+            icon: Icons.timer_outlined,
+            text: Dates.sessionDurationLabel(payload.duration),
+            color: AppColors.amber,
+            scale: scale,
+          ),
+          SizedBox(height: 6 * scale),
+          _MetaLine(
+            icon: Icons.fitness_center,
+            text:
+                '${payload.totalGymDays} TOTAL GYM DAY${payload.totalGymDays == 1 ? '' : 'S'}',
+            scale: scale,
+          ),
+          const Spacer(),
+          if (payload.gymRank != null) ...[
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: 10 * scale,
+                vertical: 8 * scale,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.amber.withValues(alpha: 0.4)),
+              ),
+              child: Text(
+                '#${payload.gymRank} IN YOUR GYM',
+                textAlign: TextAlign.center,
+                style: AppTypography.label.copyWith(
+                  color: AppColors.amber,
+                  fontSize: 10 * scale,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            SizedBox(height: 8 * scale),
+          ] else ...[
             Text(
-              'DAY ${payload.dayNumber}',
+              'Gym rank updates after your next verified session.',
               style: AppTypography.label.copyWith(
-                letterSpacing: 2,
-                fontSize: 11 * scale,
-                color: AppColors.textSecondary,
+                fontSize: 8 * scale,
+                color: AppColors.textMuted,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: 8 * scale),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'JUST',
-                    style: AppTypography.display.copyWith(
-                      fontSize: 40 * scale,
-                      height: 0.95,
-                      color: AppColors.white,
-                    ),
-                  ),
-                  Text(
-                    'SHOWED UP.',
-                    style: AppTypography.display.copyWith(
-                      fontSize: 40 * scale,
-                      height: 0.95,
-                      color: AppColors.amber,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8 * scale),
-            Container(width: 48 * scale, height: 2.5, color: AppColors.amber),
-            const Spacer(),
-            _MetaLine(
-              icon: Icons.location_on_outlined,
-              text:
-                  '${payload.gymName.toUpperCase()}  ·  ${Dates.upperDay(payload.date)}',
-              scale: scale,
-            ),
-            SizedBox(height: 6 * scale),
-            _MetaLine(
-              icon: Icons.schedule,
-              text: Dates.timeRange(payload.startTime, payload.endTime),
-              scale: scale,
-            ),
-            SizedBox(height: 6 * scale),
-            _MetaLine(
-              icon: Icons.timer_outlined,
-              text: Dates.sessionDurationLabel(payload.duration),
-              color: AppColors.amber,
-              scale: scale,
-            ),
-            SizedBox(height: 6 * scale),
-            _MetaLine(
-              icon: Icons.fitness_center,
-              text:
-                  '${payload.totalGymDays} TOTAL GYM DAY${payload.totalGymDays == 1 ? '' : 'S'}',
-              scale: scale,
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    'STRYK ${payload.dayNumber}',
-                    style: AppTypography.subheading.copyWith(
-                      color: AppColors.amber,
-                      fontSize: 15 * scale,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(width: 8 * scale),
-                Flexible(
-                  child: Text(
-                    'CONSISTENCY BUILDS FREEDOM',
-                    style: AppTypography.label.copyWith(
-                      fontSize: 7.5 * scale,
-                      letterSpacing: 0.6,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8 * scale),
-            _VerifyMark(payload: payload, compact: true),
           ],
-        ),
+          if (payload.sponsors.isNotEmpty) ...[
+            _DailySponsorsStrip(sponsors: payload.sponsors, scale: scale),
+            SizedBox(height: 6 * scale),
+          ],
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'STRYK ${payload.dayNumber}',
+                  style: AppTypography.subheading.copyWith(
+                    color: AppColors.amber,
+                    fontSize: 15 * scale,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: 8 * scale),
+              Flexible(
+                child: Text(
+                  'CONSISTENCY BUILDS FREEDOM',
+                  style: AppTypography.label.copyWith(
+                    fontSize: 7.5 * scale,
+                    letterSpacing: 0.6,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8 * scale),
+          _VerifyMark(payload: payload, compact: true),
+        ],
       ),
+    );
+
+    // Session photo is shared — Minimal also shows it when present.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Color(0xFF0E0E0E)),
+        if (payload.photoPath != null) ...[
+          _PhotoLayer(path: payload.photoPath),
+          const ColoredBox(color: Color(0xCC0E0E0E)),
+        ],
+        content,
+      ],
     );
   }
 }
@@ -338,7 +391,7 @@ class _PhotoCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      StrykLogo(height: 16 * scale, light: true),
+                      StrykLogo(height: 18 * scale, light: true),
                       const Spacer(),
                       Align(
                         alignment: Alignment.centerRight,
@@ -369,7 +422,7 @@ class _PhotoCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'JUST SHOWED UP.',
+                          'SHOWED UP.',
                           style: AppTypography.heading.copyWith(
                             fontSize: 26 * scale,
                             color: AppColors.amber,
@@ -438,119 +491,218 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = payload.displayName.trim().isEmpty
+        ? 'Athlete'
+        : payload.displayName.trim();
+    final initial = name[0].toUpperCase();
+    final profile = payload.profilePhotoPath;
+    final hasProfile =
+        profile != null && profile.isNotEmpty && File(profile).existsSync();
+    final verified = payload.verifiedDaysMonth ?? payload.totalGymDays;
+    final current = payload.currentStreak ?? payload.dayNumber;
+    final best = payload.bestStreak ?? current;
+
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        border: Border.all(
-          color: AppColors.amber.withValues(alpha: 0.55),
-          width: 1.4,
-        ),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF0E0E0E)),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          CustomPaint(painter: _GrainPainter(alpha: 0.07)),
+          if (payload.photoPath != null) ...[
+            _PhotoLayer(path: payload.photoPath),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.82),
+                    const Color(0xF00B0B0B),
+                  ],
+                ),
+              ),
+            ),
+          ] else
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0, -0.3),
+                  radius: 1.1,
+                  colors: [
+                    AppColors.amber.withValues(alpha: 0.12),
+                    const Color(0xFF0B0B0B),
+                  ],
+                ),
+              ),
+            ),
           Padding(
             padding: EdgeInsets.fromLTRB(
-              18 * scale,
-              18 * scale,
-              18 * scale,
+              16 * scale,
+              16 * scale,
+              16 * scale,
               14 * scale,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StrykLogo(height: 16 * scale, light: true),
-                SizedBox(height: 8 * scale),
-                Text(
-                  'DAY ${payload.dayNumber}',
-                  style: AppTypography.label.copyWith(
-                    letterSpacing: 2.2,
-                    fontSize: 11 * scale,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    StrykLogo(
+                      height: 18 * scale,
+                      variant: StrykLogoVariant.wordmark,
+                    ),
+                    const Spacer(),
+                    Flexible(
+                      child: Text(
+                        'STRONGER EVERYDAY',
+                        style: AppTypography.label.copyWith(
+                          fontSize: 8 * scale,
+                          color: AppColors.amber,
+                          letterSpacing: 0.8,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Transform.rotate(
-                    angle: -0.04,
+                SizedBox(height: 16 * scale),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22 * scale,
+                      backgroundColor: AppColors.charcoal,
+                      backgroundImage:
+                          hasProfile ? FileImage(File(profile)) : null,
+                      child: hasProfile
+                          ? null
+                          : Text(
+                              initial,
+                              style: AppTypography.subheading.copyWith(
+                                color: AppColors.amber,
+                                fontSize: 16 * scale,
+                              ),
+                            ),
+                    ),
+                    SizedBox(width: 10 * scale),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: AppTypography.subheading
+                                .copyWith(fontSize: 15 * scale),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on_rounded,
+                                size: 12 * scale,
+                                color: AppColors.amber,
+                              ),
+                              SizedBox(width: 2 * scale),
+                              Expanded(
+                                child: Text(
+                                  payload.gymName,
+                                  style: AppTypography.label
+                                      .copyWith(fontSize: 10 * scale),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(flex: 2),
+                if (payload.gymRank != null) ...[
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
                     child: Text(
-                      'JUST\nSHOWED\nUP.',
+                      '#${payload.gymRank}',
                       style: AppTypography.display.copyWith(
-                        fontSize: 44 * scale,
-                        height: 0.92,
-                        fontStyle: FontStyle.italic,
+                        fontSize: 72 * scale,
+                        height: 0.9,
                         color: AppColors.white,
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: 14 * scale),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Transform.rotate(
-                    angle: -0.02,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12 * scale,
-                        vertical: 8 * scale,
-                      ),
+                  Text(
+                    'IN YOUR GYM',
+                    style: AppTypography.label.copyWith(
+                      fontSize: 12 * scale,
                       color: AppColors.amber,
-                      child: Text(
-                        Dates.sessionDurationLabel(payload.duration),
-                        style: AppTypography.subheading.copyWith(
-                          color: AppColors.textOnLight,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          fontSize: 14 * scale,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      letterSpacing: 1.4,
                     ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  payload.gymName.toUpperCase(),
-                  style: AppTypography.subheading.copyWith(fontSize: 13 * scale),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '${Dates.upperDay(payload.date)}  ·  ${Dates.timeRange(payload.startTime, payload.endTime)}',
-                  style: AppTypography.body.copyWith(fontSize: 11 * scale),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4 * scale),
-                Text(
-                  'STRYK ${payload.dayNumber}',
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.amber,
-                    fontSize: 11 * scale,
+                  Text(
+                    'This Month',
+                    style: AppTypography.body.copyWith(fontSize: 12 * scale),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 6 * scale),
+                ] else ...[
+                  Text(
+                    'DAY ${payload.dayNumber}',
+                    style: AppTypography.display.copyWith(
+                      fontSize: 48 * scale,
+                      height: 1,
+                      color: AppColors.amber,
+                    ),
+                  ),
+                  Text(
+                    'JUST SHOWED UP',
+                    style: AppTypography.label.copyWith(
+                      fontSize: 12 * scale,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+                const Spacer(),
                 Row(
                   children: [
-                    Expanded(child: _VerifyMark(payload: payload, compact: true)),
-                    SizedBox(width: 8 * scale),
-                    Text(
-                      'SAME YOU.\nSTRONGER TOMORROW.',
-                      textAlign: TextAlign.right,
-                      style: AppTypography.label.copyWith(
-                        fontSize: 7.5 * scale,
-                        fontStyle: FontStyle.italic,
-                        height: 1.2,
+                    Expanded(
+                      child: _StatCell(
+                        icon: Icons.calendar_month_rounded,
+                        label: 'Verified Days',
+                        value: '$verified',
+                        scale: scale,
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatCell(
+                        icon: Icons.local_fire_department_rounded,
+                        label: 'Current Streak',
+                        value: '$current',
+                        scale: scale,
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatCell(
+                        icon: Icons.bar_chart_rounded,
+                        label: 'Best Streak',
+                        value: '$best',
+                        scale: scale,
                       ),
                     ),
                   ],
+                ),
+                SizedBox(height: 10 * scale),
+                Text(
+                  'Discipline today, stronger tomorrow.',
+                  style: AppTypography.label.copyWith(
+                    fontSize: 9 * scale,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -561,24 +713,102 @@ class _AchievementCard extends StatelessWidget {
   }
 }
 
-class _GrainPainter extends CustomPainter {
-  _GrainPainter({this.alpha = 0.08});
+class _StatCell extends StatelessWidget {
+  const _StatCell({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.scale,
+  });
 
-  final double alpha;
+  final IconData icon;
+  final String label;
+  final String value;
+  final double scale;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final random = Random(21);
-    final paint = Paint()..color = Color.fromRGBO(255, 255, 255, alpha);
-    for (var i = 0; i < 380; i++) {
-      canvas.drawCircle(
-        Offset(random.nextDouble() * size.width, random.nextDouble() * size.height),
-        random.nextDouble() * 1.1,
-        paint,
-      );
-    }
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: AppColors.amber, size: 16 * scale),
+        SizedBox(height: 4 * scale),
+        Text(
+          value,
+          style: AppTypography.metric.copyWith(
+            fontSize: 18 * scale,
+            color: AppColors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: AppTypography.label.copyWith(fontSize: 7.5 * scale),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
+}
+
+class _DailySponsorsStrip extends StatelessWidget {
+  const _DailySponsorsStrip({required this.sponsors, required this.scale});
+
+  final List<ShareSponsor> sponsors;
+  final double scale;
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 6 * scale),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
+        color: AppColors.charcoal.withValues(alpha: 0.65),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'POWERED BY',
+            style: AppTypography.label.copyWith(
+              color: AppColors.amber,
+              fontSize: 7 * scale,
+            ),
+          ),
+          SizedBox(height: 4 * scale),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final s in sponsors.take(3)) ...[
+                Flexible(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 18 * scale,
+                        child: SponsorLogo(
+                          urlOrPath: s.logoUrl,
+                          fallbackIconSize: 14 * scale,
+                        ),
+                      ),
+                      Text(
+                        s.name,
+                        style: AppTypography.label.copyWith(
+                          fontSize: 7 * scale,
+                          color: AppColors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
